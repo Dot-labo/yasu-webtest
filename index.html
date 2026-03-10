@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MicroCMS + Cloudflare Pages デモ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3d;
+    --primary: #6c63ff;
+    --primary-glow: #6c63ff44;
+    --accent: #00d4aa;
+    --accent2: #ff6b6b;
+    --text: #e8e8f0;
+    --text-muted: #7a7a9a;
+    --cms-bg: #f0f4ff;
+    --cms-surface: #ffffff;
+    --cms-border: #dde3f5;
+    --cms-primary: #3b5bdb;
+    --cms-text: #1a1a2e;
+    --cms-muted: #6b7280;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .app-logo {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .app-sep { color: var(--border); font-size: 18px; }
+
+  .app-title { font-size: 13px; color: var(--text-muted); }
+
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    background: var(--surface2);
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .tab {
+    padding: 7px 18px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .tab.active {
+    background: var(--primary);
+    color: white;
+  }
+
+  .tab:not(.active) {
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .tab:not(.active):hover {
+    color: var(--text);
+    background: var(--border);
+  }
+
+  /* ── LAYOUT ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    height: calc(100vh - 57px);
+  }
+
+  /* ── CMS PANEL ── */
+  .cms-panel {
+    background: var(--cms-bg);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .cms-topbar {
+    background: var(--cms-surface);
+    border-bottom: 1px solid var(--cms-border);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    height: 48px;
+    gap: 12px;
+  }
+
+  .cms-logo-mark {
+    width: 28px;
+    height: 28px;
+    background: var(--cms-primary);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 900;
+    color: white;
+    letter-spacing: -0.5px;
+  }
+
+  .cms-logo-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--cms-text);
+  }
+
+  .cms-badge {
+    margin-left: auto;
+    background: #e8f0fe;
+    color: var(--cms-primary);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  .cms-body {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .cms-sidebar {
+    background: var(--cms-surface);
+    border-right: 1px solid var(--cms-border);
+    padding: 16px 0;
+    overflow-y: auto;
+  }
+
+  .cms-nav-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--cms-muted);
+    padding: 0 16px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .cms-nav-item {
+    padding: 9px 16px;
+    font-size: 12.5px;
+    color: var(--cms-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  .cms-nav-item.active {
+    color: var(--cms-primary);
+    background: #e8f0fe44;
+    border-left-color: var(--cms-primary);
+    font-weight: 600;
+  }
+
+  .cms-nav-item:hover:not(.active) {
+    color: var(--cms-text);
+    background: #f5f7ff;
+  }
+
+  .cms-main {
+    padding: 20px;
+    overflow-y: auto;
+    background: var(--cms-bg);
+  }
+
+  .cms-content-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .cms-content-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--cms-text);
+  }
+
+  .cms-save-btn {
+    background: var(--cms-primary);
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cms-save-btn:hover { background: #2f4cc8; transform: translateY(-1px); }
+  .cms-save-btn:active { transform: translateY(0); }
+
+  .cms-save-btn.saving {
+    background: #10b981;
+    pointer-events: none;
+  }
+
+  .field-group {
+    background: var(--cms-surface);
+    border: 1px solid var(--cms-border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .field-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--cms-muted);
+    padding: 10px 14px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .field-required {
+    color: #ef4444;
+    margin-left: 2px;
+  }
+
+  .field-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    color: var(--cms-text);
+    padding: 8px 14px 12px;
+    background: transparent;
+    resize: none;
+  }
+
+  .field-textarea {
+    min-height: 80px;
+    line-height: 1.6;
+  }
+
+  .field-color-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px 12px;
+  }
+
+  .field-color-input {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 2px;
+    background: transparent;
+  }
+
+  .field-color-hex {
+    font-size: 12px;
+    color: var(--cms-muted);
+    font-family: monospace;
+  }
+
+  .field-image-area {
+    margin: 8px 14px 12px;
+    border: 2px dashed var(--cms-border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .field-image-area:hover {
+    border-color: var(--cms-primary);
+    background: #f0f4ff;
+  }
+
+  .field-image-preview {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+    display: none;
+  }
+
+  .field-image-placeholder {
+    font-size: 11px;
+    color: var(--cms-muted);
+  }
+
+  .field-image-placeholder span {
+    font-size: 22px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* ── PREVIEW PANEL ── */
+  .preview-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .preview-topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .browser-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+  }
+
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #febc2e; }
+  .dot-g { background: #28c840; }
+
+  .browser-url {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: monospace;
+  }
+
+  .preview-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .preview-frame {
+    flex: 1;
+    overflow-y: auto;
+    background: white;
+    position: relative;
+  }
+
+  /* ── LP PREVIEW ── */
+  .lp-hero {
+    background: #0f172a;
+    padding: 60px 32px 48px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .lp-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    opacity: 0.15;
+    filter: blur(60px);
+    transition: background 0.5s;
+  }
+
+  .lp-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 14px;
+    position: relative;
+  }
+
+  .lp-h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 36px;
+    line-height: 1.15;
+    color: white;
+    margin-bottom: 16px;
+    position: relative;
+    transition: all 0.3s;
+  }
+
+  .lp-h1 em {
+    font-style: italic;
+    color: #818cf8;
+    transition: color 0.3s;
+  }
+
+  .lp-lead {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #94a3b8;
+    max-width: 400px;
+    margin: 0 auto 28px;
+    position: relative;
+    transition: all 0.3s;
+  }
+
+  .lp-cta {
+    display: inline-block;
+    padding: 14px 36px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    border: none;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: all 0.3s;
+    position: relative;
+    letter-spacing: 0.03em;
+  }
+
+  .lp-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+
+  .lp-section {
+    padding: 40px 32px;
+    background: white;
+  }
+
+  .lp-section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: #0f172a;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .lp-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .lp-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 18px 14px;
+    text-align: center;
+  }
+
+  .lp-card-icon { font-size: 24px; margin-bottom: 8px; }
+
+  .lp-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+
+  .lp-card-desc {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.5;
+  }
+
+  .lp-form-section {
+    padding: 40px 32px;
+    background: #f8fafc;
+  }
+
+  .lp-form-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: #0f172a;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .lp-form {
+    max-width: 360px;
+    margin: 0 auto;
+  }
+
+  .lp-form input, .lp-form textarea {
+    width: 100%;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 10px;
+    font-family: 'Noto Sans JP', sans-serif;
+    color: #0f172a;
+    outline: none;
+    transition: border-color 0.2s;
+    background: white;
+  }
+
+  .lp-form input:focus, .lp-form textarea:focus {
+    border-color: #6366f1;
+  }
+
+  .lp-form textarea { min-height: 80px; resize: none; }
+
+  .lp-form-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: all 0.3s;
+  }
+
+  .lp-form-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  }
+
+  /* ── DEPLOY ANIMATION ── */
+  .deploy-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text);
+    z-index: 999;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    min-width: 320px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .deploy-toast.show {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .deploy-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .deploy-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .deploy-step {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    transform: translateX(-8px);
+    transition: all 0.3s;
+  }
+
+  .deploy-step.done {
+    opacity: 1;
+    transform: translateX(0);
+    color: var(--accent);
+  }
+
+  /* ── FLOW EXPLANATION ── */
+  .flow-panel {
+    display: none;
+    padding: 32px;
+    grid-column: 1 / -1;
+    background: var(--surface);
+  }
+
+  .flow-panel.active {
+    display: block;
+  }
+
+  .flow-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    row-gap: 16px;
+  }
+
+  .flow-node {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    text-align: center;
+    min-width: 130px;
+  }
+
+  .flow-node-icon { font-size: 28px; margin-bottom: 6px; }
+  .flow-node-name { font-size: 12px; font-weight: 700; color: var(--text); }
+  .flow-node-desc { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+  .flow-arrow {
+    color: var(--primary);
+    font-size: 22px;
+    padding: 0 8px;
+    font-weight: 700;
+  }
+
+  .flow-note {
+    margin-top: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+  }
+
+  .flow-note strong { color: var(--accent); }
+
+  /* update pulse */
+  @keyframes pulse-border {
+    0% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.4); }
+    70% { box-shadow: 0 0 0 8px rgba(0, 212, 170, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0); }
+  }
+
+  .updating {
+    animation: pulse-border 0.8s ease-out;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <span class="app-logo">⚡ LP Studio</span>
+  <span class="app-sep">|</span>
+  <span class="app-title">MicroCMS + Cloudflare Pages　仕組みデモ</span>
+  <div class="tab-bar">
+    <button class="tab active" onclick="showView('demo')">🖥 デモ体験</button>
+    <button class="tab" onclick="showView('flow')">🔄 仕組みを見る</button>
+  </div>
+</header>
+
+<!-- MAIN DEMO -->
+<div class="layout" id="view-demo">
+
+  <!-- LEFT: CMS PANEL -->
+  <div class="cms-panel">
+    <div class="cms-topbar">
+      <div class="cms-logo-mark">m</div>
+      <span class="cms-logo-text">microCMS</span>
+      <span class="cms-badge">管理画面（クライアント用）</span>
+    </div>
+    <div class="cms-body">
+      <!-- Sidebar -->
+      <div class="cms-sidebar">
+        <div class="cms-nav-label">コンテンツ</div>
+        <div class="cms-nav-item active">📄 LP設定</div>
+        <div class="cms-nav-item">📝 お知らせ</div>
+        <div class="cms-nav-item">💬 よくある質問</div>
+        <div class="cms-nav-item">⭐ 実績・事例</div>
+        <br>
+        <div class="cms-nav-label">設定</div>
+        <div class="cms-nav-item">🔗 API設定</div>
+        <div class="cms-nav-item">👤 メンバー</div>
+      </div>
+
+      <!-- Main content -->
+      <div class="cms-main">
+        <div class="cms-content-header">
+          <div class="cms-content-title">LP設定を編集</div>
+          <button class="cms-save-btn" id="saveBtn" onclick="handleSave()">
+            <span>✓</span> 公開・保存
+          </button>
+        </div>
+
+        <!-- Headline -->
+        <div class="field-group">
+          <div class="field-label">キャッチコピー <span class="field-required">*</span></div>
+          <input class="field-input" id="f-headline" type="text"
+            value="売上を、もっと本質的に。" oninput="liveUpdate()" maxlength="40"
+            placeholder="メインのキャッチコピーを入力">
+        </div>
+
+        <!-- Sub headline -->
+        <div class="field-group">
+          <div class="field-label">サブコピー <span class="field-required">*</span></div>
+          <textarea class="field-input field-textarea" id="f-sub" oninput="liveUpdate()"
+            placeholder="補足説明文を入力">LP制作の常識を変える。Claude CodeとCloudflare Pagesで、あなたのビジネスを次のステージへ。</textarea>
+        </div>
+
+        <!-- CTA text -->
+        <div class="field-group">
+          <div class="field-label">CTAボタンのテキスト <span class="field-required">*</span></div>
+          <input class="field-input" id="f-cta" type="text"
+            value="今すぐ無料相談する" oninput="liveUpdate()" maxlength="20">
+        </div>
+
+        <!-- CTA color -->
+        <div class="field-group">
+          <div class="field-label">CTAボタンの色</div>
+          <div class="field-color-row">
+            <input class="field-color-input" type="color" id="f-color"
+              value="#6c63ff" oninput="liveUpdate()">
+            <span class="field-color-hex" id="colorHex">#6c63ff</span>
+          </div>
+        </div>
+
+        <!-- Form title -->
+        <div class="field-group">
+          <div class="field-label">お問い合わせフォームのタイトル</div>
+          <input class="field-input" id="f-formtitle" type="text"
+            value="まずはお気軽にご相談ください" oninput="liveUpdate()" maxlength="30">
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: LP PREVIEW -->
+  <div class="preview-panel">
+    <div class="preview-topbar">
+      <div class="browser-dots">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <div class="browser-url">https://your-lp.pages.dev/</div>
+      <span class="preview-label">● LIVE PREVIEW</span>
+    </div>
+    <div class="preview-frame" id="previewFrame">
+
+      <!-- Hero -->
+      <div class="lp-hero" id="lp-hero">
+        <div class="lp-eyebrow">LP制作 × AI × 爆速デプロイ</div>
+        <h1 class="lp-h1" id="lp-h1"><em>売上を、</em>もっと本質的に。</h1>
+        <p class="lp-lead" id="lp-lead">LP制作の常識を変える。Claude CodeとCloudflare Pagesで、あなたのビジネスを次のステージへ。</p>
+        <button class="lp-cta" id="lp-cta" style="background:#6c63ff;">今すぐ無料相談する</button>
+      </div>
+
+      <!-- Features -->
+      <div class="lp-section">
+        <div class="lp-section-title">選ばれる3つの理由</div>
+        <div class="lp-cards">
+          <div class="lp-card">
+            <div class="lp-card-icon">⚡</div>
+            <div class="lp-card-title">爆速デプロイ</div>
+            <div class="lp-card-desc">修正指示から本番反映まで数分</div>
+          </div>
+          <div class="lp-card">
+            <div class="lp-card-icon">🎯</div>
+            <div class="lp-card-title">SEO最適化</div>
+            <div class="lp-card-desc">Core Web Vitals対応で検索上位へ</div>
+          </div>
+          <div class="lp-card">
+            <div class="lp-card-icon">✏️</div>
+            <div class="lp-card-title">簡単編集</div>
+            <div class="lp-card-desc">この管理画面から文章を変えるだけ</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="lp-form-section">
+        <div class="lp-form-title" id="lp-formtitle">まずはお気軽にご相談ください</div>
+        <div class="lp-form">
+          <input type="text" placeholder="お名前">
+          <input type="email" placeholder="メールアドレス">
+          <textarea placeholder="ご相談内容をお聞かせください"></textarea>
+          <button class="lp-form-btn" id="lp-form-btn" style="background:#6c63ff;">無料相談を申し込む →</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- FLOW VIEW -->
+<div class="layout" id="view-flow" style="display:none; grid-template-columns: 1fr;">
+  <div style="padding: 40px; overflow-y: auto; background: var(--bg);">
+    <div class="flow-title">仕組み：クライアントが編集 → サイトに即反映</div>
+
+    <div class="flow-diagram">
+      <div class="flow-node">
+        <div class="flow-node-icon">👤</div>
+        <div class="flow-node-name">クライアント</div>
+        <div class="flow-node-desc">MicroCMS管理画面<br>でテキストを編集</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="border-color: var(--primary);">
+        <div class="flow-node-icon">🗄</div>
+        <div class="flow-node-name">MicroCMS</div>
+        <div class="flow-node-desc">日本製ヘッドレスCMS<br>APIでデータ配信</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="flow-node-icon">⚙️</div>
+        <div class="flow-node-name">Webhook自動通知</div>
+        <div class="flow-node-desc">「更新があったよ」と<br>Cloudflareへ通知</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="border-color: var(--accent);">
+        <div class="flow-node-icon">☁️</div>
+        <div class="flow-node-name">Cloudflare Pages</div>
+        <div class="flow-node-desc">自動リビルド＆<br>世界へ爆速配信</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="flow-node-icon">🌏</div>
+        <div class="flow-node-name">訪問者</div>
+        <div class="flow-node-desc">更新された最新の<br>LPを高速表示</div>
+      </div>
+    </div>
+
+    <div class="flow-note">
+      クライアントは <strong>MicroCMSの管理画面だけ</strong> を操作します。<br>
+      コードには一切触れません。デザインが崩れるリスクもゼロ。<br>
+      更新から反映まで <strong>約1〜2分</strong> で完了します。
+    </div>
+
+    <br>
+
+    <!-- Role separation -->
+    <div class="flow-title" style="margin-top: 16px;">あなたとクライアントの役割分担</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 700px; margin: 0 auto;">
+      <div style="background: var(--surface2); border: 1px solid var(--primary); border-radius: 12px; padding: 20px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 12px;">🛠 あなた（制作者）が触る部分</div>
+        <div style="font-size: 12px; color: var(--text-muted); line-height: 2;">
+          ✓ デザイン・レイアウト<br>
+          ✓ HTML / CSS / JS<br>
+          ✓ SEO構造・メタ情報<br>
+          ✓ Cloudflare Pages設定<br>
+          ✓ MicroCMSのAPI設計<br>
+          ✓ Claude Codeで修正指示
+        </div>
+      </div>
+      <div style="background: var(--surface2); border: 1px solid var(--accent); border-radius: 12px; padding: 20px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 12px;">✏️ クライアントが触れる部分</div>
+        <div style="font-size: 12px; color: var(--text-muted); line-height: 2;">
+          ✓ キャッチコピー・文章<br>
+          ✓ ボタンのテキスト<br>
+          ✓ お問い合わせフォームタイトル<br>
+          ✓ 画像の差し替え<br>
+          ✓ FAQの追加・編集<br>
+          ✗ コード・デザインには触れない
+        </div>
+      </div>
+    </div>
+
+    <br>
+
+    <!-- Cost comparison -->
+    <div class="flow-title" style="margin-top: 16px;">コスト比較</div>
+    <div style="max-width: 600px; margin: 0 auto; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; background: var(--surface); padding: 12px; font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase;">
+        <div>項目</div><div style="color:var(--accent2)">WordPress</div><div style="color:var(--accent)">この構成</div>
+      </div>
+      <div style="font-size: 12px; color: var(--text-muted);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; padding: 10px 12px; border-top: 1px solid var(--border);">
+          <div style="color: var(--text); text-align: left; padding-left: 12px;">ホスティング</div><div>1,000〜3,000円/月</div><div style="color:var(--accent)">無料</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; padding: 10px 12px; border-top: 1px solid var(--border);">
+          <div style="color: var(--text); text-align: left; padding-left: 12px;">CMS</div><div>プラグイン代</div><div style="color:var(--accent)">0〜$9.5/月</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; padding: 10px 12px; border-top: 1px solid var(--border);">
+          <div style="color: var(--text); text-align: left; padding-left: 12px;">セキュリティ更新</div><div>都度対応が必要</div><div style="color:var(--accent)">自動</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; padding: 10px 12px; border-top: 1px solid var(--border);">
+          <div style="color: var(--text); text-align: left; padding-left: 12px;">表示速度</div><div>普通〜遅い</div><div style="color:var(--accent)">爆速（CDN配信）</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; padding: 10px 12px; border-top: 1px solid var(--border);">
+          <div style="color: var(--text); text-align: left; padding-left: 12px;">Claude Code連携</div><div>複雑</div><div style="color:var(--accent)">git pushで完結</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DEPLOY TOAST -->
+<div class="deploy-toast" id="deployToast">
+  <div class="deploy-icon">🚀</div>
+  <div class="deploy-steps">
+    <div class="deploy-step" id="step1">📡 MicroCMS → Webhook送信中...</div>
+    <div class="deploy-step" id="step2">⚙️ Cloudflare Pagesがビルド開始...</div>
+    <div class="deploy-step" id="step3">🌏 世界中のエッジに配信完了！</div>
+  </div>
+</div>
+
+<script>
+  // Live update preview from CMS fields
+  function liveUpdate() {
+    const headline = document.getElementById('f-headline').value;
+    const sub = document.getElementById('f-sub').value;
+    const cta = document.getElementById('f-cta').value;
+    const color = document.getElementById('f-color').value;
+    const formtitle = document.getElementById('f-formtitle').value;
+
+    // Update preview
+    const h1 = document.getElementById('lp-h1');
+    const parts = headline.split('、');
+    if (parts.length > 1) {
+      h1.innerHTML = `<em>${parts[0]}、</em>${parts.slice(1).join('、')}`;
+    } else {
+      h1.textContent = headline;
+    }
+
+    document.getElementById('lp-lead').textContent = sub;
+    document.getElementById('lp-cta').textContent = cta;
+    document.getElementById('lp-cta').style.background = color;
+    document.getElementById('lp-form-btn').style.background = color;
+    document.getElementById('lp-formtitle').textContent = formtitle;
+    document.getElementById('colorHex').textContent = color;
+
+    // Hero glow
+    document.getElementById('lp-hero').querySelector('::before');
+    const hero = document.getElementById('lp-hero');
+    hero.style.setProperty('--glow', color);
+
+    // Pulse the preview frame briefly
+    const frame = document.getElementById('previewFrame');
+    frame.classList.add('updating');
+    setTimeout(() => frame.classList.remove('updating'), 800);
+  }
+
+  // Save and deploy animation
+  function handleSave() {
+    const btn = document.getElementById('saveBtn');
+    btn.classList.add('saving');
+    btn.innerHTML = '<span>✓</span> 保存中...';
+
+    // Show deploy toast
+    setTimeout(() => {
+      showDeployToast();
+    }, 400);
+
+    setTimeout(() => {
+      btn.classList.remove('saving');
+      btn.innerHTML = '<span>✓</span> 公開・保存';
+    }, 4000);
+  }
+
+  function showDeployToast() {
+    const toast = document.getElementById('deployToast');
+    toast.classList.add('show');
+
+    const steps = ['step1', 'step2', 'step3'];
+    steps.forEach((id, i) => {
+      setTimeout(() => {
+        document.getElementById(id).classList.add('done');
+      }, i * 900);
+    });
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      steps.forEach(id => document.getElementById(id).classList.remove('done'));
+    }, 5000);
+  }
+
+  // Tab view switching
+  function showView(view) {
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach((t, i) => t.classList.toggle('active', (i === 0 && view === 'demo') || (i === 1 && view === 'flow')));
+
+    document.getElementById('view-demo').style.display = view === 'demo' ? 'grid' : 'none';
+    document.getElementById('view-flow').style.display = view === 'flow' ? 'grid' : 'none';
+  }
+
+  // Initialize
+  liveUpdate();
+</script>
+</body>
+</html>
